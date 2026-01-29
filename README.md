@@ -96,10 +96,3 @@ Chat-bowl/
     └── Segoe Fluent Icons.ttf  # Icon font
 ```
 
-## License
-
-MIT License
-
-## Author
-
-Developed by **Mehdi**
