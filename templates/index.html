@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Bowl - AI Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" id="hljs-theme">
+    <script src="/static/jq.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h1 class="app-title">Chat Bowl</h1>
+                <div class="header-buttons">
+                    <button id="themeToggle" class="icon-button" title="Toggle Theme">&#xE793;</button>
+                    <button onclick="KeyboardShortcuts.open()" class="icon-button" title="Shortcuts">&#xE765;</button>
+                </div>
+            </div>
+            
+            <div id="ollama-status" class="status-badge">
+                <span class="status-dot"></span>
+                <span class="status-text">Checking...</span>
+            </div>
+
+            <!-- Provider & Persona Selection -->
+            <div class="provider-bar">
+                <button onclick="AIProviders.openSettings()" class="provider-btn">
+                    <span>Provider:</span>
+                    <strong id="currentProvider">DEMO</strong>
+                </button>
+                <button onclick="Personas.open()" class="provider-btn">
+                    <span>Persona:</span>
+                    <strong id="currentPersona">Assistant</strong>
+                </button>
+            </div>
+            
+            <div class="sidebar-section">
+                <h2>
+                    Models
+                    <button id="refreshButton" class="icon-button" title="Refresh">&#xE72C;</button>
+                </h2>
+                <div id="available-models" class="list"></div>
+            </div>
+            <div class="sidebar-section">
+                <h2>Running</h2>
+                <div id="running-models" class="card-list"></div>
+            </div>
+            <div class="sidebar-section" style="flex:1;overflow-y:auto;min-height:0;">
+                <h2>
+                    History
+                    <button onclick="ChatSearch.open()" class="icon-button" title="Search">&#xE721;</button>
+                </h2>
+                <div id="chat-history" class="list"></div>
+            </div>
+            <div class="sidebar-footer">
+                <button onclick="ChatStats.open()" class="button">Stats</button>
+                <button onclick="Bookmarks.open()" class="button">Bookmarks</button>
+                <button onclick="Summarizer.summarize()" class="button">Summarize</button>
+                <button onclick="exportChat()" class="button">Export</button>
+                <button onclick="$('#about').addClass('show')" class="button">About</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="chat-header">
+                <div class="chat-title">
+                    <span id="current-chat-model" class="model-label"></span>
+                    <span id="current-chat-title">New Chat</span>
+                </div>
+                <div class="header-actions">
+                    <div class="token-info">
+                        <span id="tokenCount">~0 tokens</span>
+                        <span id="responseTime">--</span>
+                    </div>
+                    <button id="saveChat" class="button">Save</button>
+                </div>
+            </div>
+            
+            <div id="conversation" class="chat-container">
+                <div class="welcome-message">
+                    <div class="welcome-icon">
+                        <svg width="72" height="72" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="var(--primary)" opacity="0.1"/>
+                            <circle cx="50" cy="50" r="30" fill="var(--primary)" opacity="0.2"/>
+                            <circle cx="50" cy="50" r="15" fill="var(--primary)"/>
+                        </svg>
+                    </div>
+                    <h2>Welcome to Chat Bowl</h2>
+                    <p>AI chat with free providers, image generation, and more</p>
+                    <div class="tips">
+                        <div class="tip">
+                            <span class="tip-icon">1</span>
+                            <span>Configure AI provider (Groq free tier, HuggingFace, or Demo)</span>
+                        </div>
+                        <div class="tip">
+                            <span class="tip-icon">2</span>
+                            <span>Generate images with <kbd>Ctrl+Shift+I</kbd> - completely free!</span>
+                        </div>
+                        <div class="tip">
+                            <span class="tip-icon">3</span>
+                            <span>Run Python code with <kbd>Ctrl+Shift+R</kbd></span>
+                        </div>
+                        <div class="tip">
+                            <span class="tip-icon">4</span>
+                            <span>Change AI persona for different response styles</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Smart Replies -->
+            <div id="smartReplies" class="smart-replies" style="display:none;"></div>
+            
+            <div class="input-container">
+                <div class="message-controls">
+                    <div class="message-type-container">
+                        <label class="radio-label">
+                            <input type="radio" name="messageType" value="user" checked> User
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="messageType" value="system"> System
+                        </label>
+                        <button onclick="SystemPresets.open()" class="small-button">Presets</button>
+                    </div>
+                    <div class="button-group">
+                        <button onclick="PromptTemplates.open()" class="button" title="Templates">Templates</button>
+                        <button onclick="ImageGenerator.open()" class="button" title="Generate Image">Image</button>
+                        <button onclick="CodeRunner.open()" class="button" title="Run Code">Code</button>
+                        <button id="voiceBtn" onclick="VoiceInput.toggle()" class="button" title="Voice">Voice</button>
+                        <input type="file" id="imageInput" accept="image/*" hidden>
+                        <button id="clearHistory" class="button">Clear</button>
+                        <button id="sendWithoutResponse" class="button">Send Only</button>
+                        <button id="continueButton" class="button">Continue</button>
+                        <button id="sendMessage" class="button primary">Send</button>
+                    </div>
+                </div>
+                <div class="input-wrapper" id="dropZone">
+                    <textarea id="userMessage" placeholder="Type your message... (Ctrl+Enter to send)" class="textarea"></textarea>
+                    <div class="input-footer">
+                        <span id="charCount">0 characters</span>
+                        <span id="inputTokens">Input: ~0</span>
+                        <span id="historyTokens">History: ~0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reaction Picker -->
+    <div id="reactionPicker" class="reaction-picker" style="display:none;"></div>
+    
+    <!-- Context Menu -->
+    <div id="cms" class="context-menu"><div class="menu-items"></div></div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h1>Edit Message</h1>
+            <textarea id="editMessageContent" class="textarea"></textarea>
+            <div class="button-group">
+                <button id="saveEdit" class="button primary">Save</button>
+                <button id="cancelEdit" class="button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div id="renameModal" class="modal">
+        <div class="modal-content">
+            <h1>Rename Chat</h1>
+            <input type="text" id="newChatName" class="textarea" style="min-height:auto;">
+            <div class="button-group">
+                <button id="saveRename" class="button primary">Save</button>
+                <button id="cancelRename" class="button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Modal -->
+    <div id="searchModal" class="modal">
+        <div class="modal-content modal-large">
+            <h1>Search Chats</h1>
+            <input type="text" id="searchInput" class="textarea search-input" placeholder="Search messages...">
+            <div id="searchResults" class="search-results"></div>
+            <div class="button-group">
+                <button onclick="ChatSearch.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmarks Modal -->
+    <div id="bookmarksModal" class="modal">
+        <div class="modal-content">
+            <h1>Bookmarks</h1>
+            <div id="bookmarksList" class="bookmarks-list"></div>
+            <div class="button-group">
+                <button onclick="Bookmarks.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates Modal -->
+    <div id="templatesModal" class="modal">
+        <div class="modal-content modal-large">
+            <h1>Prompt Templates</h1>
+            <div id="templatesList" class="templates-list"></div>
+            <div class="button-group">
+                <button onclick="PromptTemplates.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Presets Modal -->
+    <div id="presetsModal" class="modal">
+        <div class="modal-content">
+            <h1>System Presets</h1>
+            <div id="presetsList" class="presets-list"></div>
+            <div class="button-group">
+                <button onclick="SystemPresets.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div id="shortcutsModal" class="modal">
+        <div class="modal-content">
+            <h1>Keyboard Shortcuts</h1>
+            <div id="shortcutsList" class="shortcuts-list"></div>
+            <div class="button-group">
+                <button onclick="KeyboardShortcuts.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <h1>Chat Statistics</h1>
+            <div id="statsContent" class="stats-content"></div>
+            <div class="button-group">
+                <button onclick="ChatStats.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Provider Settings Modal -->
+    <div id="providerModal" class="modal">
+        <div class="modal-content modal-large">
+            <h1>AI Provider Settings</h1>
+            <p class="modal-desc">Configure your preferred AI provider. All providers have free tiers!</p>
+            <div id="providerSettings" class="provider-settings"></div>
+            <div class="button-group">
+                <button onclick="AIProviders.closeSettings()" class="button primary">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Persona Modal -->
+    <div id="personaModal" class="modal">
+        <div class="modal-content">
+            <h1>Choose Persona</h1>
+            <p class="modal-desc">Select an AI personality for different response styles.</p>
+            <div id="personaList" class="persona-list"></div>
+            <div class="button-group">
+                <button onclick="Personas.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Generator Modal (Stable Diffusion) -->
+    <div id="imageModal" class="modal">
+        <div class="modal-content modal-large">
+            <h1>Stable Diffusion Image Generator</h1>
+            <div id="sdApiStatus" class="sd-api-status"></div>
+            <input type="text" id="imagePrompt" class="textarea" style="min-height:auto;" placeholder="Describe the image you want to generate (e.g. 'a majestic mountain landscape at sunset, digital art')">
+            <button id="generateImageBtn" onclick="ImageGenerator.generate()" class="button primary" style="width:100%;margin:10px 0;">Generate with Stable Diffusion</button>
+            <div id="imageResult"></div>
+            <h3 style="margin-top:20px;font-size:14px;color:var(--muted-foreground);">Recent Generations</h3>
+            <div id="imageHistory" class="image-history"></div>
+            <div class="button-group">
+                <button onclick="AIProviders.openSettings()" class="button">API Settings</button>
+                <button onclick="ImageGenerator.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Runner Modal -->
+    <div id="codeModal" class="modal">
+        <div class="modal-content modal-large">
+            <h1>Python Code Runner</h1>
+            <p class="modal-desc">Execute Python code in a sandboxed environment.</p>
+            <textarea id="codeInput" class="textarea code-textarea" placeholder="# Write your Python code here..."></textarea>
+            <div class="code-actions">
+                <button onclick="CodeRunner.insertExample()" class="button">Insert Example</button>
+                <button id="runCodeBtn" onclick="CodeRunner.run()" class="button primary">Run Code</button>
+            </div>
+            <div id="codeOutput" class="code-output"></div>
+            <div class="button-group">
+                <button onclick="CodeRunner.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <h1>Conversation Summary</h1>
+            <div id="summaryContent" class="summary-content"></div>
+            <div class="button-group">
+                <button onclick="Summarizer.close()" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="about" class="modal">
+        <div class="modal-content">
+            <h1>About Chat Bowl</h1>
+            <p>A powerful AI chat interface with multiple free providers.</p>
+            <div class="about-features">
+                <strong>Features:</strong><br>
+                - Multiple AI providers (Groq, HuggingFace - free!)<br>
+                - AI Image Generation (Pollinations.ai - free!)<br>
+                - Python Code Execution<br>
+                - Chat Personas &amp; Templates<br>
+                - Voice Input/Output<br>
+                - Bookmarks, Search, Export<br>
+                - Full Keyboard Shortcuts
+            </div>
+            <p class="about-author">Developed by <strong>Mehdi</strong></p>
+            <div class="button-group">
+                <button onclick="$('#about').removeClass('show')" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/features.js"></script>
+    <script src="/static/main.js"></script>
+</body>
+</html>
