@@ -1,11 +1,3 @@
-/**
- * Chat Bowl Advanced Features Module
- * Extended features including AI providers, image generation, code execution, etc.
- */
-
-// ============================================
-// FEATURE: Multi-Provider AI Support (Llama 2 Chat)
-// ============================================
 const AIProviders = {
     current: 'demo',
     apiKeys: {},
@@ -15,7 +7,6 @@ const AIProviders = {
     },
 
     init() {
-        // Load saved API keys from localStorage
         const saved = localStorage.getItem('chat-bowl-api-keys');
         if (saved) {
             this.apiKeys = JSON.parse(saved);
@@ -93,7 +84,6 @@ const AIProviders = {
             </div>
         `);
 
-        // Event handlers
         $('.provider-option').click(function() {
             const provider = $(this).data('provider');
             $('.provider-option').removeClass('active');
@@ -108,9 +98,6 @@ const AIProviders = {
     }
 };
 
-// ============================================
-// FEATURE: Stable Diffusion Image Generation
-// ============================================
 const ImageGenerator = {
     history: [],
     lastImageData: null,
@@ -156,16 +143,12 @@ const ImageGenerator = {
             const response = await fetch('/api/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt,
-                    api_key: apiKey 
-                })
+                body: JSON.stringify({ prompt, api_key: apiKey })
             });
 
             const data = await response.json();
             
             if (data.success) {
-                // Handle both base64 (Stable Diffusion) and URL (Pollinations) responses
                 let imageUrl;
                 if (data.image_base64) {
                     imageUrl = `data:image/png;base64,${data.image_base64}`;
@@ -175,12 +158,7 @@ const ImageGenerator = {
                     this.lastImageData = null;
                 }
                 
-                this.history.unshift({ 
-                    prompt, 
-                    url: imageUrl,
-                    model: data.model,
-                    time: Date.now() 
-                });
+                this.history.unshift({ prompt, url: imageUrl, model: data.model, time: Date.now() });
                 this.saveHistory();
                 
                 $('#imageResult').html(`
@@ -234,7 +212,6 @@ const ImageGenerator = {
     },
 
     saveHistory() {
-        // Don't save base64 images to localStorage (too large)
         const toSave = this.history.slice(0, 20).map(item => ({
             ...item,
             url: item.url.startsWith('data:') ? '' : item.url
@@ -266,9 +243,6 @@ const ImageGenerator = {
     }
 };
 
-// ============================================
-// FEATURE: Code Execution Sandbox
-// ============================================
 const CodeRunner = {
     open() {
         $('#codeModal').addClass('show');
@@ -297,16 +271,10 @@ const CodeRunner = {
             
             let output = '';
             if (data.success) {
-                output = `<div class="code-success">
-                    <strong>Output:</strong>
-                    <pre>${this.escapeHtml(data.output)}</pre>
-                </div>`;
+                output = `<div class="code-success"><strong>Output:</strong><pre>${this.escapeHtml(data.output)}</pre></div>`;
             }
             if (data.error) {
-                output += `<div class="code-error">
-                    <strong>Error:</strong>
-                    <pre>${this.escapeHtml(data.error)}</pre>
-                </div>`;
+                output += `<div class="code-error"><strong>Error:</strong><pre>${this.escapeHtml(data.error)}</pre></div>`;
             }
             
             $('#codeOutput').html(output);
@@ -318,28 +286,20 @@ const CodeRunner = {
     },
 
     escapeHtml(text) {
-        return text.replace(/&/g, '&amp;')
-                   .replace(/</g, '&lt;')
-                   .replace(/>/g, '&gt;')
-                   .replace(/"/g, '&quot;');
+        return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     },
 
     insertExample() {
-        $('#codeInput').val(`# Example: Calculate Fibonacci
-def fibonacci(n):
+        $('#codeInput').val(`def fibonacci(n):
     if n <= 1:
         return n
     return fibonacci(n-1) + fibonacci(n-2)
 
-# Print first 10 Fibonacci numbers
 for i in range(10):
     print(f"F({i}) = {fibonacci(i)}")`);
     }
 };
 
-// ============================================
-// FEATURE: Smart Reply Suggestions
-// ============================================
 const SmartReplies = {
     async getSuggestions(message) {
         try {
@@ -381,9 +341,6 @@ const SmartReplies = {
     }
 };
 
-// ============================================
-// FEATURE: Chat Personas
-// ============================================
 const Personas = {
     current: 'assistant',
     list: {},
@@ -393,9 +350,7 @@ const Personas = {
             const response = await fetch('/api/personas');
             this.list = await response.json();
         } catch {
-            this.list = {
-                assistant: { name: 'Assistant', system: 'You are helpful.' }
-            };
+            this.list = { assistant: { name: 'Assistant', system: 'You are helpful.' } };
         }
         this.current = localStorage.getItem('chat-bowl-persona') || 'assistant';
         this.updateUI();
@@ -429,10 +384,7 @@ const Personas = {
         Object.entries(this.list).forEach(([key, persona]) => {
             $('<div>')
                 .addClass('persona-item' + (key === this.current ? ' active' : ''))
-                .html(`
-                    <div class="persona-name">${persona.name}</div>
-                    <div class="persona-desc">${persona.system.substring(0, 80)}...</div>
-                `)
+                .html(`<div class="persona-name">${persona.name}</div><div class="persona-desc">${persona.system.substring(0, 80)}...</div>`)
                 .click(() => {
                     this.set(key);
                     $('.persona-item').removeClass('active');
@@ -443,9 +395,6 @@ const Personas = {
     }
 };
 
-// ============================================
-// FEATURE: Message Reactions
-// ============================================
 const Reactions = {
     emojis: ['👍', '👎', '❤️', '😂', '🤔', '🎉', '🔥', '💡'],
     data: {},
@@ -513,9 +462,6 @@ const Reactions = {
     }
 };
 
-// ============================================
-// FEATURE: Conversation Summarizer
-// ============================================
 const Summarizer = {
     async summarize() {
         if (currentChat.history.length < 2) {
@@ -531,7 +477,6 @@ const Summarizer = {
             });
             const data = await response.json();
             
-            // Show summary in a modal
             $('#summaryContent').html(marked.parse(data.summary));
             $('#summaryModal').addClass('show');
         } catch (e) {
@@ -544,9 +489,6 @@ const Summarizer = {
     }
 };
 
-// ============================================
-// FEATURE: Voice Input (Speech-to-Text)
-// ============================================
 const VoiceInput = {
     recognition: null,
     isListening: false,
@@ -600,9 +542,6 @@ const VoiceInput = {
     }
 };
 
-// ============================================
-// FEATURE: Text-to-Speech
-// ============================================
 const TextToSpeech = {
     synthesis: window.speechSynthesis,
     speaking: false,
@@ -636,9 +575,6 @@ const TextToSpeech = {
     }
 };
 
-// ============================================
-// FEATURE: Chat Search
-// ============================================
 const ChatSearch = {
     open() {
         $('#searchModal').addClass('show');
@@ -660,7 +596,6 @@ const ChatSearch = {
         const results = [];
         const lowerQuery = query.toLowerCase();
 
-        // Search current chat
         currentChat.history.forEach((msg, index) => {
             if (msg.content.toLowerCase().includes(lowerQuery)) {
                 results.push({
@@ -672,7 +607,6 @@ const ChatSearch = {
             }
         });
 
-        // Search saved chats
         chats.forEach(chat => {
             chat.history.forEach((msg, index) => {
                 if (msg.content.toLowerCase().includes(lowerQuery)) {
@@ -723,9 +657,6 @@ const ChatSearch = {
     }
 };
 
-// ============================================
-// FEATURE: Bookmarks
-// ============================================
 const Bookmarks = {
     items: [],
 
@@ -785,9 +716,6 @@ const Bookmarks = {
     }
 };
 
-// ============================================
-// FEATURE: Token Counter
-// ============================================
 const TokenCounter = {
     count(text) {
         return Math.ceil((text || '').length / 4);
@@ -806,9 +734,6 @@ const TokenCounter = {
     }
 };
 
-// ============================================
-// FEATURE: Response Timer
-// ============================================
 const ResponseTimer = {
     startTime: null,
     interval: null,
@@ -836,9 +761,6 @@ const ResponseTimer = {
     }
 };
 
-// ============================================
-// FEATURE: Keyboard Shortcuts
-// ============================================
 const KeyboardShortcuts = {
     shortcuts: [
         { keys: 'Ctrl+Enter', action: 'Send message' },
@@ -876,9 +798,6 @@ const KeyboardShortcuts = {
     }
 };
 
-// ============================================
-// FEATURE: Chat Statistics
-// ============================================
 const ChatStats = {
     open() {
         const total = currentChat.history.length;
@@ -904,9 +823,6 @@ const ChatStats = {
     }
 };
 
-// ============================================
-// FEATURE: System Presets
-// ============================================
 const SystemPresets = {
     presets: [],
 
@@ -955,9 +871,6 @@ const SystemPresets = {
     }
 };
 
-// ============================================
-// FEATURE: Prompt Templates
-// ============================================
 const PromptTemplates = {
     templates: [],
 
@@ -997,9 +910,6 @@ const PromptTemplates = {
     }
 };
 
-// ============================================
-// Initialize all features
-// ============================================
 function initFeatures() {
     AIProviders.init();
     VoiceInput.init();
@@ -1015,14 +925,10 @@ function initFeatures() {
     $('#userMessage').on('input', () => TokenCounter.update());
     $('#searchInput').on('input', function() { ChatSearch.search($(this).val()); });
 
-    // Hide reaction picker on click outside
     $(document).click(() => $('#reactionPicker').hide());
     $('#reactionPicker').click(e => e.stopPropagation());
-
-    console.log('Chat Bowl Features v2 initialized');
 }
 
-// Export
 window.AIProviders = AIProviders;
 window.ImageGenerator = ImageGenerator;
 window.CodeRunner = CodeRunner;

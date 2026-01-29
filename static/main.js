@@ -1,18 +1,14 @@
-// Global variables
 let currentChat = {
     id: null,
     model: '',
     history: [],
     temporary: true
 };
-
 let chats = [];
 let availableModels = [];
 let runningModels = [];
 let isDarkTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
 let isDemoMode = false;
-
-// Configure marked for Markdown rendering
 marked.setOptions({
     highlight: function(code, lang) {
         if (lang && hljs.getLanguage(lang)) {
@@ -23,26 +19,21 @@ marked.setOptions({
     breaks: true,
     gfm: true
 });
-
 $(document).ready(function() {
     initializeApp();
     setupEventListeners();
     checkOllamaStatus();
     updateCharCount();
-    
-    // Initialize advanced features
     if (typeof initFeatures === 'function') {
         initFeatures();
     }
 });
-
 function initializeApp() {
     updateModelLists();
     loadChats();
     createTemporaryChat();
     loadThemePreference();
 }
-
 function checkOllamaStatus() {
     $.get("/health")
         .done(function(data) {
@@ -67,7 +58,6 @@ function checkOllamaStatus() {
             $("#ollama-status .status-text").text("Server Offline");
         });
 }
-
 function setupEventListeners() {
     $("#sendMessage").click(() => sendMessage(true));
     $("#sendWithoutResponse").click(() => sendMessage(false));
@@ -80,32 +70,23 @@ function setupEventListeners() {
     $("#themeToggle").click(toggleTheme);
     $("#searchBtn").click(() => ChatSearch.open());
     $("#shortcutsBtn").click(() => KeyboardShortcuts.open());
-
-    // Character counter
     $("#userMessage").on("input", updateCharCount);
-
-    // Listen for message type switch
     $('input[name="messageType"]').change(function() {
         const isSystem = $(this).val() === 'system';
         $("#continueButton").toggle(!isSystem);
     });
-
     const dropZone = $("#dropZone")[0];
-
     dropZone.addEventListener("dragover", function (e) {
         e.preventDefault();
         $(this).addClass("drag-over");
     });
-
     dropZone.addEventListener("dragleave", function (e) {
         e.preventDefault();
         $(this).removeClass("drag-over");
     });
-
     dropZone.addEventListener("drop", function (e) {
         e.preventDefault();
         $(this).removeClass("drag-over");
-
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].type.startsWith("image/")) {
             $("#imageInput")[0].files = files;
@@ -116,11 +97,8 @@ function setupEventListeners() {
             reader.readAsDataURL(files[0]);
         }
     });
-
     setupChatHistoryContextMenu();
     setupMessageContextMenu();
-
-    // Keyboard shortcut for sending
     $("#userMessage").keydown(function(e) {
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
@@ -128,23 +106,18 @@ function setupEventListeners() {
         }
     });
 }
-
 function updateCharCount() {
     const count = $("#userMessage").val().length;
     $("#charCount").text(`${count} character${count !== 1 ? 's' : ''}`);
-    
-    // Update token counter if available
     if (typeof TokenCounter !== 'undefined') {
         TokenCounter.update();
     }
 }
-
 function toggleTheme() {
     isDarkTheme = !isDarkTheme;
     applyTheme();
     localStorage.setItem('chat-bowl-theme', isDarkTheme ? 'dark' : 'light');
 }
-
 function loadThemePreference() {
     const saved = localStorage.getItem('chat-bowl-theme');
     if (saved) {
@@ -152,7 +125,6 @@ function loadThemePreference() {
     }
     applyTheme();
 }
-
 function applyTheme() {
     if (isDarkTheme) {
         document.documentElement.setAttribute('data-theme', 'dark');
@@ -164,20 +136,17 @@ function applyTheme() {
         $("#themeToggle").html('&#xE708;');
     }
 }
-
 function exportChat() {
     if (currentChat.history.length === 0) {
         appendMessage("Info", "No messages to export.");
         return;
     }
-
     const exportData = {
         title: currentChat.title || "Temporary Session",
         model: currentChat.model,
         exportDate: new Date().toISOString(),
         messages: currentChat.history
     };
-
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -187,24 +156,19 @@ function exportChat() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
     appendMessage("Info", "Chat exported successfully.");
 }
-
 function updateModelLists() {
     const loadingHtml = `<loading>
         <svg width="35px" height="35px" viewBox="0 0 16 16">
             <circle cx="8px" cy="8px" r="6px"></circle>
         </svg>
     </loading>`;
-
     $("#running-models").html(loadingHtml);
     $("#available-models").html(loadingHtml);
-
     $.get("/ps").done(data => {
         runningModels = data.models || [];
         const $container = $("#running-models").empty();
-        
         if (runningModels.length === 0) {
             $container.html('<div class="empty-state">No models running</div>');
         } else {
@@ -219,11 +183,9 @@ function updateModelLists() {
                 $container.append($card);
             });
         }
-        
         $.get("/get_models").done(data => {
             availableModels = data.models || [];
             const $container = $("#available-models").empty();
-            
             if (availableModels.length === 0) {
                 $container.html('<div class="empty-state">No models found</div>');
             } else {
@@ -242,14 +204,12 @@ function updateModelLists() {
         });
     });
 }
-
 function createNewChat(model) {
     if (currentChat.history.length > 0 && !currentChat.temporary) {
         saveCurrentChat();
     }
     createTemporaryChat(model);
 }
-
 function createTemporaryChat(model = '') {
     currentChat = {
         id: null,
@@ -260,20 +220,16 @@ function createTemporaryChat(model = '') {
     clearHistory();
     updateCurrentChatDisplay();
 }
-
 function updateCurrentChatDisplay() {
     $("#current-chat-title").text(currentChat.temporary ? "Temporary Session" : currentChat.title);
     $("#current-chat-model").text(currentChat.model || 'No model');
     $("#saveChat").toggle(currentChat.temporary && currentChat.history.length > 0);
-    
     if (typeof TokenCounter !== 'undefined') {
         TokenCounter.update();
     }
 }
-
 function saveCurrentChat() {
     if (currentChat.history.length === 0) return;
-    
     const timestamp = Date.now();
     if (currentChat.temporary) {
         currentChat.id = timestamp;
@@ -286,20 +242,17 @@ function saveCurrentChat() {
             chats[index] = {...currentChat};
         }
     }
-    
     saveChatsToStorage();
     updateChatHistoryView();
     updateCurrentChatDisplay();
     appendMessage("Info", "Chat saved.");
 }
-
 function loadChat(chatId) {
     if (currentChat.temporary && currentChat.history.length > 0) {
         if (!confirm("This is an unsaved temporary session. Switch anyway?")) {
             return;
         }
     }
-    
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
         currentChat = {...chat};
@@ -307,7 +260,6 @@ function loadChat(chatId) {
         displayChat(currentChat.history);
     }
 }
-
 function displayChat(history) {
     $("#conversation").empty();
     hideWelcome();
@@ -315,7 +267,6 @@ function displayChat(history) {
         appendMessage(msg.role, msg.content, index, msg.images);
     });
 }
-
 function updateChatHistoryView() {
     const $container = $("#chat-history").empty();
     if (chats.length === 0) {
@@ -333,11 +284,9 @@ function updateChatHistoryView() {
         );
     });
 }
-
 function saveChatsToStorage() {
     localStorage.setItem('ollama-chats', JSON.stringify(chats));
 }
-
 function loadChats() {
     const saved = localStorage.getItem('ollama-chats');
     if (saved) {
@@ -345,12 +294,10 @@ function loadChats() {
         updateChatHistoryView();
     }
 }
-
 function loadModel(v) {
     const $modelItem = $(`#available-models .a`).filter(function() {
         return $(this).text().includes(v) || (v === 'demo-ai' && $(this).text().includes('Demo'));
     });
-    
     $modelItem.html(
         `<loading>
             <svg width="16px" height="16px" viewBox="0 0 16 16">
@@ -358,11 +305,9 @@ function loadModel(v) {
             </svg>
         </loading> Loading...`
     );
-
     $.post("/load_model", { model_name: v })
         .done(function (data) {
             if (v === 'demo-ai') {
-                // Demo model doesn't need to be "running"
                 runningModels.push('demo-ai');
                 createNewChat('demo-ai');
                 appendMessage("Info", "Demo AI activated. This is a built-in demo mode for testing the interface.");
@@ -377,31 +322,24 @@ function loadModel(v) {
             updateModelLists();
         });
 }
-
 function hideWelcome() {
     $(".welcome-message").fadeOut(300);
 }
-
 function sendMessage(withResponse = true) {
     if (!currentChat.model) {
         appendMessage("Info", "Please select a model before starting a conversation.");
         return;
     }
-
     if (!runningModels.includes(currentChat.model) && currentChat.model !== 'demo-ai') {
         appendMessage("Info", "Model is not running. Please load the model first.");
         return;
     }
-
     const messageType = $('input[name="messageType"]:checked').val();
     const message = $("#userMessage").val();
     const imageInput = $("#imageInput")[0];
     const model = currentChat.model;
-    
     if (!message.trim() && !imageInput.files[0]) return;
-
     hideWelcome();
-
     if (messageType == 'system') {
         currentChat.history.push({
             role: 'system',
@@ -414,7 +352,6 @@ function sendMessage(withResponse = true) {
         clearInput();
         return;
     }
-    
     if (imageInput.files[0]) {
         const reader = new FileReader();
         reader.onload = function (e) {
@@ -426,16 +363,13 @@ function sendMessage(withResponse = true) {
         sendMessageWithoutImage(message, messageType, model, withResponse);
     }
 }
-
 function sendMessageWithImage(message, base64Image, messageType, model, withResponse) {
     appendMessage(messageType, message, currentChat.history.length, [base64Image]);
-
     currentChat.history.push({
         role: messageType,
         content: message,
         images: [base64Image],
     });
-
     if (withResponse) {
         const requestData = {
             model_name: model,
@@ -443,19 +377,15 @@ function sendMessageWithImage(message, base64Image, messageType, model, withResp
         };
         sendRequest(requestData);
     }
-
     clearInput();
     updateCurrentChatDisplay();
 }
-
 function sendMessageWithoutImage(message, messageType, model, withResponse) {
     appendMessage(messageType, message, currentChat.history.length);
-
     currentChat.history.push({
         role: messageType,
         content: message,
     });
-
     if (withResponse) {
         const requestData = {
             model_name: model,
@@ -463,22 +393,18 @@ function sendMessageWithoutImage(message, messageType, model, withResponse) {
         };
         sendRequest(requestData);
     }
-
     clearInput();
     updateCurrentChatDisplay();
 }
-
 function continueConversation() {
     if (!currentChat.model) {
         appendMessage("Info", "Please select a model before starting a conversation.");
         return;
     }
-
     if (!runningModels.includes(currentChat.model) && currentChat.model !== 'demo-ai') {
         appendMessage("Info", "Model is not running. Please load the model first.");
         return;
     }
-
     const requestData = {
         model_name: currentChat.model,
         history: [...currentChat.history.concat([{
@@ -486,36 +412,26 @@ function continueConversation() {
             content:'\n'
         }])],
     };
-
     sendRequest(requestData);
 }
-
 function clearInput() {
     $("#userMessage").val("");
     $("#imageInput").val("");
     $(".image-preview").remove();
     updateCharCount();
 }
-
 function sendRequest(requestData) {
     $("#sendMessage, #sendWithoutResponse, #continueButton").prop('disabled', true);
-    
-    // Start response timer
     if (typeof ResponseTimer !== 'undefined') {
         ResponseTimer.start();
     }
-
-    // Add provider info to request
     if (typeof AIProviders !== 'undefined') {
         requestData.provider = AIProviders.current;
         requestData.api_key = AIProviders.getApiKey(AIProviders.current);
     }
-    
-    // Add persona info
     if (typeof Personas !== 'undefined') {
         requestData.persona = Personas.current;
     }
-
     fetch("/send_message", {
         method: "POST",
         headers: {
@@ -526,27 +442,21 @@ function sendRequest(requestData) {
         const reader = response.body.getReader();
         let decoder = new TextDecoder();
         let buffer = "";
-
         function readStream() {
             reader.read().then(({ done, value }) => {
                 if (done) return;
-
                 buffer += decoder.decode(value, { stream: true });
-
                 const lines = buffer.split("\n");
                 buffer = lines.pop();
-
                 lines.forEach((line) => {
                     if (line.startsWith("data: ")) {
                         const data = JSON.parse(line.slice(6));
                         handleStreamResponse(data);
                     }
                 });
-
                 readStream();
             });
         }
-
         readStream();
     }).catch(error => {
         appendMessage("Info", "Error: " + error.message);
@@ -560,7 +470,6 @@ function sendRequest(requestData) {
             .remove();
     });
 }
-
 function stopModel(v) {
     console.log(v);
     if (window.messageSource) {
@@ -575,7 +484,6 @@ function stopModel(v) {
             appendMessage("Info", "Failed to stop model.");
         });
 }
-
 function renderMarkdown(content) {
     try {
         return marked.parse(content);
@@ -583,28 +491,20 @@ function renderMarkdown(content) {
         return content;
     }
 }
-
 function appendMessage(sender, content, index, images = null) {
     const $conversation = $("#conversation");
     const messageClass = `message-item ${sender.toLowerCase()}-message`;
-
     const $item = $("<div>").addClass(messageClass).attr("data-index", index);
     const $header = $("<div>").addClass("message-header");
-    
     const senderLabels = {
         user: 'You',
         system: 'System',
         info: 'Info',
         assistant: 'AI'
     };
-    
     $header.append($("<span>").addClass("sender").text(senderLabels[sender.toLowerCase()] || sender));
-    
-    // Add action buttons for non-info messages
     if (sender.toLowerCase() !== 'info') {
         const $actions = $("<div>").addClass("message-actions");
-        
-        // Copy button
         const $copyBtn = $("<button>")
             .addClass("action-btn")
             .html("&#xE8C8;")
@@ -616,8 +516,6 @@ function appendMessage(sender, content, index, images = null) {
                 setTimeout(() => $(this).removeClass("copied"), 1500);
             });
         $actions.append($copyBtn);
-        
-        // TTS button for AI messages
         if (sender.toLowerCase() === 'assistant' && typeof TextToSpeech !== 'undefined') {
             const $ttsBtn = $("<button>")
                 .addClass("action-btn")
@@ -629,8 +527,6 @@ function appendMessage(sender, content, index, images = null) {
                 });
             $actions.append($ttsBtn);
         }
-        
-        // Bookmark button
         if (typeof Bookmarks !== 'undefined' && index !== undefined) {
             const $bookmarkBtn = $("<button>")
                 .addClass("action-btn")
@@ -643,13 +539,9 @@ function appendMessage(sender, content, index, images = null) {
                 });
             $actions.append($bookmarkBtn);
         }
-        
         $header.append($actions);
     }
-    
     const $body = $("<div>").addClass("message-body");
-    
-    // Render markdown for AI messages
     if (sender.toLowerCase() === 'assistant') {
         $body.html(renderMarkdown(content));
         $body.find('pre code').each(function() {
@@ -658,7 +550,6 @@ function appendMessage(sender, content, index, images = null) {
     } else {
         $body.text(content);
     }
-    
     if (images && images.length > 0) {
         const $imgContainer = $("<div>").addClass("image-container");
         images.forEach((imgData) => {
@@ -670,28 +561,23 @@ function appendMessage(sender, content, index, images = null) {
         });
         $body.append($imgContainer);
     }
-    
     if(sender!='Info')
         $item.dblclick(() => editMessage(index));
-
     $item.append($header, $body);
     $conversation.append($item);
     $conversation.scrollTop($conversation[0].scrollHeight);
 }
-
 function editMessage(index) {
     const message = currentChat.history[index];
     currentEditingIndex = index;
     $("#editMessageContent").val(message.content);
     $("#editModal").addClass('show');
 }
-
 function saveEditedMessage() {
     const newContent = $("#editMessageContent").val();
     if (newContent !== currentChat.history[currentEditingIndex].content) {
         currentChat.history[currentEditingIndex].content = newContent;
         updateConversationDisplay();
-        
         if (!currentChat.temporary) {
             const chatIndex = chats.findIndex(c => c.id === currentChat.id);
             if (chatIndex !== -1) {
@@ -702,16 +588,13 @@ function saveEditedMessage() {
     }
     closeEditModal();
 }
-
 function closeEditModal() {
     $("#editModal").removeClass('show');
     currentEditingIndex = -1;
 }
-
 function deleteMessage(index) {
     currentChat.history.splice(index, 1);
     updateConversationDisplay();
-    
     if (!currentChat.temporary) {
         const chatIndex = chats.findIndex(c => c.id === currentChat.id);
         if (chatIndex !== -1) {
@@ -720,20 +603,17 @@ function deleteMessage(index) {
         }
     }
 }
-
 function updateConversationDisplay() {
     $("#conversation").empty()
     currentChat.history.forEach((msg, index) => {
         appendMessage(msg.role, msg.content, index, msg.images);
     });
 }
-
 function clearHistory() {
     currentChat.history = [];
     $("#conversation").empty();
     $(".welcome-message").fadeIn(300);
     appendMessage('Info', 'Chat cleared. Ready for a new conversation.')
-    
     if (!currentChat.temporary) {
         const index = chats.findIndex(c => c.id === currentChat.id);
         if (index !== -1) {
@@ -742,12 +622,10 @@ function clearHistory() {
         }
     }
     updateCurrentChatDisplay();
-    
     if (typeof ResponseTimer !== 'undefined') {
         ResponseTimer.reset();
     }
 }
-
 function handleStreamResponse(data) {
     if (!window.currentResponse) {
         const $item = $("<div>").addClass('message-item assistant-message');
@@ -755,28 +633,23 @@ function handleStreamResponse(data) {
         $header.append($("<span>").addClass("sender").text('AI'));
         const $body = $("<div>").addClass("message-body");
         $item.append($header, $body);
-
         window.currentResponse = {
             element: $item,
             content: "",
         };
-        
         const loadingHtml = `<loading>
             <svg width="16px" height="16px" viewBox="0 0 16 16">
                 <circle cx="8px" cy="8px" r="6px"></circle>
             </svg>
         </loading>`;
         window.currentResponse.element.find('.message-header').append(loadingHtml);
-        
         $("#conversation").append(window.currentResponse.element);
-        
         if(window.isregenerate){
             window.historyAfterIndex.forEach((msg, index) => {
                 appendMessage(msg.role, msg.content, currentChat.history.length+1+index);
             });
         }
     }
-
     if (data.content) {
         window.currentResponse.content += data.content;
         window.currentResponse.element
@@ -788,25 +661,18 @@ function handleStreamResponse(data) {
         if(!window.isregenerate)
             $("#conversation").scrollTop($("#conversation")[0].scrollHeight);
     }
-
     if (data.done) {
-        // Stop response timer
         if (typeof ResponseTimer !== 'undefined') {
             ResponseTimer.stop();
         }
-        
         if (window.currentResponse) {
             currentChat.history.push({
                 role: "assistant",
                 content: window.currentResponse.content,
             });
-
             const index = currentChat.history.length - 1;
             const content = window.currentResponse.content;
-            
-            // Add action buttons
             const $actions = $("<div>").addClass("message-actions");
-            
             const $copyBtn = $("<button>")
                 .addClass("action-btn")
                 .html("&#xE8C8;")
@@ -818,7 +684,6 @@ function handleStreamResponse(data) {
                     setTimeout(() => $(this).removeClass("copied"), 1500);
                 });
             $actions.append($copyBtn);
-            
             if (typeof TextToSpeech !== 'undefined') {
                 const $ttsBtn = $("<button>")
                     .addClass("action-btn")
@@ -830,7 +695,6 @@ function handleStreamResponse(data) {
                     });
                 $actions.append($ttsBtn);
             }
-            
             if (typeof Bookmarks !== 'undefined') {
                 const $bookmarkBtn = $("<button>")
                     .addClass("action-btn")
@@ -843,27 +707,21 @@ function handleStreamResponse(data) {
                     });
                 $actions.append($bookmarkBtn);
             }
-            
             window.currentResponse.element.find('.message-header').append($actions);
-
             window.currentResponse.element.attr("data-index", index);
-            
             if(window.isregenerate){
                 currentChat.history.push.apply(currentChat.history, window.historyAfterIndex);
                 window.historyAfterIndex = null;
                 window.isregenerate = false;
             }
-            
             window.currentResponse.element.find('.message-header>loading').remove();
         }
-
         if (!currentChat.temporary) {
             saveCurrentChat();
         }
         updateCurrentChatDisplay();
         window.currentResponse = null;
     }
-
     if (data.error) {
         appendMessage("Info", "Error: " + data.error);
         if (typeof ResponseTimer !== 'undefined') {
@@ -871,7 +729,6 @@ function handleStreamResponse(data) {
         }
     }
 }
-
 function showImagePreview(dataUrl) {
     const $preview = $("<div>").addClass("image-preview");
     const $img = $("<img>").attr("src", dataUrl).addClass("preview-image");
@@ -882,17 +739,13 @@ function showImagePreview(dataUrl) {
             $preview.remove();
             $("#imageInput").val("");
         });
-
     $preview.append($img, $removeBtn);
     $("#dropZone").append($preview);
 }
-
-// Context menu functionality
 function showCm(items, x, y) {
     const menu = $("#cms");
     const menuItems = menu.find(".menu-items");
     menuItems.empty();
-    
     items.forEach(item => {
         const $item = $('<div>')
             .addClass('menu-item')
@@ -903,30 +756,23 @@ function showCm(items, x, y) {
             });
         menuItems.append($item);
     });
-
     const menuWidth = menu.outerWidth();
     const menuHeight = menu.outerHeight();
     const windowWidth = $(window).width();
     const windowHeight = $(window).height();
-
     if (x + menuWidth > windowWidth) x = windowWidth - menuWidth;
     if (y + menuHeight > windowHeight) y = windowHeight - menuHeight;
-
     menu.css({ left: x, top: y, display: 'block' });
 }
-
 function hideCm() {
     $("#cms").hide();
 }
-
 $(document).click(() => hideCm());
 $("#cms").click(e => e.stopPropagation());
-
 function setupChatHistoryContextMenu() {
     $("#chat-history").on("contextmenu", ".a", function(e) {
         e.preventDefault();
         const chatId = $(this).data("chat-id");
-        
         showCm([
             {
                 icon: "&#xe8ac;",
@@ -941,13 +787,11 @@ function setupChatHistoryContextMenu() {
         ], e.pageX, e.pageY);
     });
 }
-
 function setupMessageContextMenu() {
     $("#conversation").on("contextmenu", ".message-item:not(.info-message)", function(e) {
         e.preventDefault();
         const index = $(this).data("index");
         const isAI = $(this).hasClass("assistant-message");
-        
         const menuItems = [
             {
                 icon: "&#xE74D;", 
@@ -965,7 +809,6 @@ function setupMessageContextMenu() {
                 action: () => copyMessageContent(index)
             }
         ];
-
         if (isAI) {
             menuItems.push({
                 icon: "&#xe72c;",
@@ -973,7 +816,6 @@ function setupMessageContextMenu() {
                 action: () => regenerateResponse(index)
             });
         }
-        
         if (typeof Bookmarks !== 'undefined') {
             menuItems.push({
                 icon: "&#xE734;",
@@ -984,18 +826,14 @@ function setupMessageContextMenu() {
                 }
             });
         }
-
         showCm(menuItems, e.pageX, e.pageY);
     });
 }
-
 function showRenameDialog(chatId) {
     const chat = chats.find(c => c.id === chatId);
     if (!chat) return;
-
     $("#newChatName").val(chat.title || `Chat ${new Date(chat.id).toLocaleString()}`);
     $("#renameModal").addClass("show");
-    
     $("#saveRename").off().on("click", () => {
         const newName = $("#newChatName").val().trim();
         if (newName) {
@@ -1008,12 +846,10 @@ function showRenameDialog(chatId) {
         }
         $("#renameModal").removeClass("show");
     });
-    
     $("#cancelRename").off().on("click", () => {
         $("#renameModal").removeClass("show");
     });
 }
-
 function deleteChat(chatId) {
     if (confirm("Delete this chat?")) {
         const index = chats.findIndex(c => c.id === chatId);
@@ -1021,31 +857,25 @@ function deleteChat(chatId) {
             chats.splice(index, 1);
             saveChatsToStorage();
             updateChatHistoryView();
-            
             if (currentChat.id === chatId) {
                 createTemporaryChat();
             }
         }
     }
 }
-
 function regenerateResponse(index) {
     const historyBeforeIndex = currentChat.history.slice(0, index);
     const historyAfterIndex = currentChat.history.slice(index + 1);
-    
     window.historyAfterIndex = historyAfterIndex;
     currentChat.history = historyBeforeIndex;
     window.isregenerate = true;
     updateConversationDisplay();
-    
     const requestData = {
         model_name: currentChat.model,
         history: historyBeforeIndex
     };
-    
     sendRequest(requestData);
 }
-
 function copyMessageContent(index) {
     const message = currentChat.history[index];
     navigator.clipboard.writeText(message.content)

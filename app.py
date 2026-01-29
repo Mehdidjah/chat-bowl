@@ -8,10 +8,6 @@ import os
 
 app = Flask(__name__)
 
-# ============================================
-# AI Provider Configuration
-# ============================================
-
 AI_PROVIDERS = {
     "demo": {
         "name": "Demo AI",
@@ -32,14 +28,12 @@ AI_PROVIDERS = {
     }
 }
 
-# Demo responses
 DEMO_RESPONSES = [
     "I understand your question. Let me think about this...\n\nBased on my analysis:\n\n1. **First consideration**: The context suggests you're looking for a comprehensive answer.\n\n2. **Second point**: There are multiple approaches we could take.\n\n3. **Recommendation**: Start with the basics and build from there.\n\nWould you like me to elaborate?",
     "That's interesting! Here's my perspective:\n\n```python\ndef solve_problem(data):\n    result = process(data)\n    return result\n```\n\nThe key insight is breaking down the problem into smaller parts.",
     "Great question! Here's a detailed response:\n\n## Overview\nThis topic has several important aspects.\n\n## Key Points\n- Point A: Foundation concepts\n- Point B: Implementation details\n- Point C: Best practices\n\n## Conclusion\nFeel free to ask follow-up questions!",
 ]
 
-# Chat personas
 PERSONAS = {
     "assistant": {
         "name": "Assistant",
@@ -67,10 +61,6 @@ PERSONAS = {
         "style": "analytical"
     }
 }
-
-# ============================================
-# Routes
-# ============================================
 
 @app.route('/')
 def index():
@@ -148,7 +138,6 @@ def send_message():
     persona = data.get('persona', 'assistant')
     api_key = data.get('api_key', '')
     
-    # Add persona system prompt
     if persona in PERSONAS and (not chat_history or chat_history[0].get('role') != 'system'):
         chat_history.insert(0, {
             'role': 'system',
@@ -178,14 +167,12 @@ def generate_demo_response(chat_history):
 
 ```python
 def example_function(data):
-    '''Process the input data'''
     result = []
     for item in data:
         processed = transform(item)
         result.append(processed)
     return result
 
-# Usage
 output = example_function([1, 2, 3, 4, 5])
 print(output)
 ```
@@ -211,14 +198,12 @@ Click the "Image" button in the toolbar, then describe what you want.
     yield f"data: {json.dumps({'done': True})}\n\n"
 
 def generate_groq_response(chat_history, model_name, api_key):
-    """Generate response using Groq API with Llama 2"""
     if not api_key:
         yield f"data: {json.dumps({'error': 'Groq API key required. Get free key at console.groq.com'})}\n\n"
         yield f"data: {json.dumps({'done': True})}\n\n"
         return
     
     try:
-        # Default to Llama 2 model
         model = model_name or "llama2-70b-4096"
         
         response = requests.post(
@@ -265,14 +250,12 @@ def generate_groq_response(chat_history, model_name, api_key):
         yield f"data: {json.dumps({'done': True})}\n\n"
 
 def generate_huggingface_response(chat_history, model_name, api_key):
-    """Generate response using HuggingFace with Llama 2 Chat"""
     if not api_key:
         yield f"data: {json.dumps({'error': 'HuggingFace token required. Get free at huggingface.co/settings/tokens'})}\n\n"
         yield f"data: {json.dumps({'done': True})}\n\n"
         return
     
     try:
-        # Format for Llama 2 Chat
         prompt = ""
         for msg in chat_history:
             role = msg.get('role', 'user')
@@ -351,13 +334,8 @@ def stop_model():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# ============================================
-# Stable Diffusion Image Generation
-# ============================================
-
 @app.route('/api/generate-image', methods=['POST'])
 def generate_image():
-    """Generate image using Stable Diffusion via HuggingFace"""
     data = request.json
     prompt = data.get('prompt', '')
     api_key = data.get('api_key', '')
@@ -365,10 +343,8 @@ def generate_image():
     if not prompt:
         return jsonify({"error": "Prompt required"}), 400
     
-    # Try HuggingFace Stable Diffusion if API key provided
     if api_key:
         try:
-            # Use Stable Diffusion 2.1 model
             model_id = "stabilityai/stable-diffusion-2-1"
             
             response = requests.post(
@@ -379,14 +355,12 @@ def generate_image():
             )
             
             if response.status_code == 503:
-                # Model loading, return status
                 return jsonify({
                     "error": "Stable Diffusion model is loading. Please wait 20-30 seconds and try again.",
                     "loading": True
                 }), 503
             
             if response.status_code == 200:
-                # Success - return base64 image
                 image_bytes = response.content
                 image_base64 = base64.b64encode(image_bytes).decode('utf-8')
                 
@@ -406,12 +380,10 @@ def generate_image():
         except Exception as e:
             return jsonify({"error": f"Error: {str(e)}"}), 500
     
-    # Fallback: Use Pollinations.ai (free, no API key needed)
     else:
         try:
             import urllib.parse
             encoded_prompt = urllib.parse.quote(prompt)
-            # Pollinations generates image from URL
             image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=512&height=512&nologo=true"
             
             return jsonify({
@@ -423,10 +395,6 @@ def generate_image():
             })
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-
-# ============================================
-# Other API Endpoints
-# ============================================
 
 @app.route('/api/suggest-replies', methods=['POST'])
 def suggest_replies():
